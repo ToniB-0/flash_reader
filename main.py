@@ -9,6 +9,7 @@ import sys
 import tkinter as tk
 from tkinter import font as tkfont
 import subprocess
+import re
 
 
 # ── Design tokens ─────────────────────────────────────────────────────────────
@@ -24,6 +25,11 @@ WIDGET_W    = 480
 WIDGET_H    = 200
 CORNER_R    = 14
 
+
+
+def tokenize(text: str) -> list[str]:
+    """Split text into words and punctuation as separate tokens."""
+    return [t for t in re.findall(r"[.,!?;:\"'—–]|[\w'-]+", text) if t.strip()]
 
 def get_text() -> str:
     """Return the text to read: argv[1], or clipboard content."""
@@ -44,7 +50,7 @@ def get_text() -> str:
 class FlashReader:
     def __init__(self, root: tk.Tk, text: str):
         self.root = root
-        self.words = text.split() if text.strip() else []
+        self.words = tokenize(text) if text.strip() else []
         self.index = 0
         self.running = False
         self.wpm = 250          # default words per minute
