@@ -1,42 +1,54 @@
 #!/usr/bin/env python3
 """
 macOS Quick Action (Services) entry point.
-Receives selected text via stdin (piped by Automator) and launches the widget.
+Receives selected text via stdin (piped by Automator).
 
-Automator workflow setup:
-  1. Open Automator → New → Quick Action
-  2. Set "Workflow receives current" → "text" in "any application"
-  3. Add action: "Run Shell Script"
-     Shell: /bin/bash
-     Pass input: as stdin
-  4. Paste this one-liner as the script:
-       python3 /path/to/flash_reader/service_handler.py
-  5. Save as "Flash Reader"
-  6. The service will now appear under [App] > Services > Flash Reader
-     when you have text selected.
+If Flash Reader is already running (socket exists), sends text to it.
+Otherwise, launches a new instance with the text.
 """
 
 import sys
 import os
+import socket
 import subprocess
 
-def main():
-    # Automator pipes the selected text to stdin
-    text = sys.stdin.read().strip()
-    if not text:
-        sys.exit(0)
+SOCKET_PATH = "/tmp/flash_reader.sock"
 
-    # Path to main.py (same directory as this script)
+def send_to_running(text: str) -> bool:
+    """Try to send text to an already-running Flash Reader. Returns True on success."""
+    if not os.path.exists(SOCKET_PATH):
+        return False
+    try:
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.settimeout(2)
+        client.connect(SOCKET_PATH)
+        client.sendall(text.encode("utf-8"))
+        client.close()
+        return True
+    except Exception:
+        return False
+
+def launch_new(text: str):
+    """Launch a new Flash Reader instance with the given text."""
     here = os.path.dirname(os.path.abspath(__file__))
     main_py = os.path.join(here, "main.py")
+    venv_python = os.path.join(here, "venv", "bin", "python3")
+    python = venv_python if os.path.exists(venv_python) else sys.executable
 
-    # Launch the widget as a detached process so Automator doesn't wait for it
     subprocess.Popen(
-        [sys.executable, main_py, text],
+        [python, main_py, text],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+
+def main():
+    text = sys.stdin.read().strip()
+    if not text:
+        sys.exit(0)
+
+    if not send_to_running(text):
+        launch_new(text)
 
 if __name__ == "__main__":
     main()
