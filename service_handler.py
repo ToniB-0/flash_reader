@@ -29,18 +29,16 @@ def send_to_running(text: str) -> bool:
         return False
 
 def launch_new(text: str):
-    """Launch a new Flash Reader instance with the given text."""
     here = os.path.dirname(os.path.abspath(__file__))
     main_py = os.path.join(here, "main.py")
-    venv_python = os.path.join(here, "venv", "bin", "python3")
-    python = venv_python if os.path.exists(venv_python) else sys.executable
 
     subprocess.Popen(
-        [python, main_py, text],
+        [sys.executable, main_py, text],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+    
 
 def main():
     text = sys.stdin.read().strip()
